@@ -56,3 +56,22 @@ st_rectangle <- function(xmin, xmax, ymin, ymax) {
     ))
     return(res)    
 }
+
+tx_to_counts <- function(genes, cells, remove_bg = TRUE) {
+    if (remove_bg) {
+        idx <- which(cells != 0)
+        cells <- cells[idx]
+        genes <- genes[idx]
+    }
+    genes <- factor(genes)
+    cells <- factor(cells)
+    counts <- Matrix::sparseMatrix(
+        i = as.integer(genes), 
+        j = as.integer(cells), 
+        x = rep(1, length(genes)),
+        dims = c(length(levels(genes)), length(levels(cells)))
+    )
+    rownames(counts) <- levels(genes)
+    colnames(counts) <- levels(cells)
+    return(counts)
+}
