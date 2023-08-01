@@ -139,7 +139,7 @@ baysor.run = function(
     stopifnot(file.exists(baysor_binpath))
     
     ## split transcripts into tiles
-    ntiles <- baysor.split_tx_files(output_dir, max_tx_per_tile) 
+    ntiles <- split_tx_files(output_dir, max_tx_per_tile) 
     
     ## run baysor in each tile
     cmds = map_chr(glue('{output_dir}/g{1:ntiles}/'), function(outdir) {
