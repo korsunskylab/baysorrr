@@ -44,3 +44,15 @@ readMM <- function(fname, max_header_size = 100, nthreads = NULL) {
         Matrix::sparseMatrix(i = V1, j = V2, x = V3, dims = c(nrow, ncol))
     )
 }
+
+st_rectangle <- function(xmin, xmax, ymin, ymax) {
+    res <- st_polygon(list(
+        rbind(
+            c(xmin, ymin),
+            c(xmax, ymin), 
+            c(xmax, ymax), 
+            c(xmin, ymax), 
+            c(xmin, ymin))
+    ))
+    return(res)    
+}
