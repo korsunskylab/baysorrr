@@ -1,6 +1,6 @@
 try_cmd = function(cmd, attempts_left, verbose=FALSE) {
     if (attempts_left==0) {
-        msg = glue('Failed to run {cmd}.')
+        msg = glue::glue('Failed to run {cmd}.')
         if (verbose) message(msg)
         # return(msg)
         return(1L)
@@ -11,11 +11,11 @@ try_cmd = function(cmd, attempts_left, verbose=FALSE) {
         # return(msg)
         return(0L)
     }, error = function(msg) {
-        if (verbose) message(glue('Try to run again: {cmd}'))
+        if (verbose) message(glue::glue('Try to run again: {cmd}'))
         system('sleep 10')
         try_cmd(cmd, attempts_left-1)
     }, warning = function(msg) {
-        if (verbose) message(glue('Try to run again: {cmd}'))
+        if (verbose) message(glue::glue('Try to run again: {cmd}'))
         system('sleep 10')
         try_cmd(cmd, attempts_left-1)
     })    
@@ -58,11 +58,11 @@ baysor.collect_tx = function(dir) {
 baysor.read_shapes = function(dir) {
     fnames = list.files(dir, pattern='segmentation_polygons.json', recursive=TRUE, full.names=TRUE)
     json_list = fnames %>% map(jsonlite::read_json) %>% map('geometries')
-    shapes = map(json_list, function(json) {
+    shapes = purrr::map(json_list, function(json) {
         cell_shapes = json %>% 
-            map('coordinates') %>% map(1) %>% 
-            map(function(y) cbind(map_dbl(y, 1), map_dbl(y, 2))) %>% 
-            map(function(cell) {
+            purrr::map('coordinates') %>%purrr::map(1) %>% 
+            purrr::map(function(y) cbind(purrr::map_dbl(y, 1), purrr::map_dbl(y, 2))) %>% 
+            purrr::map(function(cell) {
                 if (nrow(cell) < 3) {
                     ## some Baysor cells get returned as lines? 
                     st_polygon(list())
@@ -70,7 +70,7 @@ baysor.read_shapes = function(dir) {
                     st_polygon(list(rbind(cell, tail(cell, 1))))  
                 }
             })
-        cell_ids = map_int(json, 'cell') 
+        cell_ids = purrr::map_int(json, 'cell') 
         st_sfc(cell_shapes[order(cell_ids)])
     }) %>% 
         purrr::reduce(c)    
@@ -94,9 +94,9 @@ baysor.collect_cells = function(dir, no_ncv_estimation) {
         cell_summary = tx[
             cell != 0, 
             .(
-                segmentation_tile = unique(tile), 
+                segmentation_tile = unique(.SD$tile), 
                 n_transcripts = .N, 
-                avg_confidence = mean(assignment_confidence), 
+                avg_confidence = mean(.SD$assignment_confidence), 
                 # ncv_color = mean_hex(ncv_color), 
                 cluster = .SD[, .N, by = cluster][order(-N)][1, cluster]
             ), 
@@ -106,10 +106,10 @@ baysor.collect_cells = function(dir, no_ncv_estimation) {
         cell_summary = tx[
             cell != 0, 
             .(
-                segmentation_tile = unique(tile), 
+                segmentation_tile = unique(.SD$tile), 
                 n_transcripts = .N, 
-                avg_confidence = mean(assignment_confidence), 
-                ncv_color = mean_hex(ncv_color), 
+                avg_confidence = mean(.SD$assignment_confidence), 
+                ncv_color = mean_hex(.SD$ncv_color), 
                 cluster = .SD[, .N, by = cluster][order(-N)][1, cluster]
             ), 
             by = cell
@@ -160,13 +160,13 @@ baysor.run = function(
     if (no_ncv_estimation) ncv_str = '--no-ncv-estimation'
     
     ## run baysor in each tile
-    cmds = map_chr(glue('{output_dir}/g{1:ntiles}/'), function(outdir) {
-        as.character(glue('{baysor_binpath} run --x-column x --y-column y --gene-column gene --scale={scale} --save-polygons=GeoJSON --min-molecules-per-cell={min_molecules_per_cell} {ncv_str} --prior-segmentation-confidence={prior_segmentation_confidence} --n-clusters={n_clusters}  -o {outdir} {outdir}/tx_baysor.csv :cell'))
+    cmds = purrr::map_chr(glue::glue('{output_dir}/g{1:ntiles}/'), function(outdir) {
+        as.character(glue::glue('{baysor_binpath} run --x-column x --y-column y --gene-column gene --scale={scale} --save-polygons=GeoJSON --min-molecules-per-cell={min_molecules_per_cell} {ncv_str} --prior-segmentation-confidence={prior_segmentation_confidence} --n-clusters={n_clusters}  -o {outdir} {outdir}/tx_baysor.csv :cell'))
     }) 
-    baysor_err = future_map_int(cmds, try_cmd, attempts_left=max_attempts)
+    baysor_err = furrr::future_map_int(cmds, try_cmd, attempts_left=max_attempts)
     if (any(baysor_err == 1L)) {
         failed_tiles = paste(which(baysor_err == 1L), collapse = ' ')
-        warning(glue('baysor failed to complete on tiles {failed_tiles}'))
+        warning(glue::glue('baysor failed to complete on tiles {failed_tiles}'))
     }
     
     ## stitch and summarize results 
