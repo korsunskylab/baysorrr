@@ -154,6 +154,7 @@ baysor.run = function(
     stopifnot(file.exists(baysor_binpath))
     
     ## split transcripts into tiles
+    environment(split_tx_files) <- environment()
     ntiles <- split_tx_files(output_dir, max_tx_per_tile) 
 
     ncv_str = ''
