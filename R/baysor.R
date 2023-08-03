@@ -28,7 +28,7 @@ baysor.collect_tx = function(dir) {
         map(fread) %>% data.table::rbindlist(idcol = "tile")
     if (is(tx$cell, "character")) {
         ## Assumes cell is of format "{name}-{number}"
-        cell_id = str_split(tx$cell, '-') %>% map(2)
+        cell_id = stringr::str_split(tx$cell, '-') %>% map(2)
         cell_id[map_lgl(cell_id, is.null)] = 0
         tx$cell = as.integer(cell_id)
         
@@ -85,13 +85,25 @@ mean_hex = function(str) {
     )    
 }
 
-baysor.collect_cells = function(dir) {
+baysor.collect_cells = function(dir, no_ncv_estimation) {
     cells = st_sf(shape=baysor.read_shapes(dir))
     cells = cbind(cells, st_coordinates(st_centroid(cells$shape))) %>% dplyr::rename(x = X, y = Y)
     cells$area <- st_area(cells$shape)
-    cells = cbind(
-        cells, 
-        tx[
+
+    if (no_ncv_estimation) {
+        cell_summary = tx[
+            cell != 0, 
+            .(
+                segmentation_tile = unique(tile), 
+                n_transcripts = .N, 
+                avg_confidence = mean(assignment_confidence), 
+                # ncv_color = mean_hex(ncv_color), 
+                cluster = .SD[, .N, by = cluster][order(-N)][1, cluster]
+            ), 
+            by = cell
+        ][order(cell)]
+    } else {
+        cell_summary = tx[
             cell != 0, 
             .(
                 segmentation_tile = unique(tile), 
@@ -102,7 +114,9 @@ baysor.collect_cells = function(dir) {
             ), 
             by = cell
         ][order(cell)]
-    )
+    }
+        
+    cells = cbind(cells, cell_summary) 
     return(cells)    
 }
 
@@ -130,6 +144,7 @@ baysor.run = function(
     prior_segmentation_confidence = 0.7, 
     max_tx_per_tile = 5e6, 
     scale = 5, ## need to specify in v0.6.0, even with cellpose priors 
+    no_ncv_estimation = FALSE, 
     min_molecules_per_cell = 10, ## doesn't seem to work? 
     remove_temp_files = TRUE, ## only set to FALSE for debugging purposes 
     max_attempts = 2 ## retry Baysor up to max_attempts-1 times. max_attempts=1 means no retries.
@@ -140,10 +155,13 @@ baysor.run = function(
     
     ## split transcripts into tiles
     ntiles <- split_tx_files(output_dir, max_tx_per_tile) 
+
+    ncv_str = ''
+    if (no_ncv_estimation) ncv_str = '--no-ncv-estimation'
     
     ## run baysor in each tile
     cmds = map_chr(glue('{output_dir}/g{1:ntiles}/'), function(outdir) {
-        as.character(glue('{baysor_binpath} run --x-column x --y-column y --gene-column gene --scale={scale} --save-polygons=GeoJSON --min-molecules-per-cell={min_molecules_per_cell} --prior-segmentation-confidence={prior_segmentation_confidence} --n-clusters={n_clusters}  -o {outdir} {outdir}/tx_baysor.csv :cell'))
+        as.character(glue('{baysor_binpath} run --x-column x --y-column y --gene-column gene --scale={scale} --save-polygons=GeoJSON --min-molecules-per-cell={min_molecules_per_cell} {ncv_str} --prior-segmentation-confidence={prior_segmentation_confidence} --n-clusters={n_clusters}  -o {outdir} {outdir}/tx_baysor.csv :cell'))
     }) 
     baysor_err = future_map_int(cmds, try_cmd, attempts_left=max_attempts)
     if (any(baysor_err == 1L)) {
@@ -155,7 +173,7 @@ baysor.run = function(
     tx <- baysor.collect_tx(output_dir)
     counts <- tx_to_counts(tx$gene, tx$cell, remove_bg = TRUE)
     environment(baysor.collect_cells) <- environment()
-    cells = baysor.collect_cells(output_dir)    
+    cells = baysor.collect_cells(output_dir, no_ncv_estimation)  
     
     ## QC: remove low count cells 
     ##     why doesn't Baysor do this internally? 

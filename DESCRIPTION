@@ -13,6 +13,7 @@ Imports:
     dplyr,
     furrr, 
     future,
+    stringr, 
     Matrix, 
     sfarrow, 
     jsonlite, 
