@@ -1,7 +1,7 @@
 #' @export 
 st_assign_pts_to_polygon = function(pts, polygons) {
-    ores = st_intersects(pts, polygons) 
-    ores = map(ores, head, 1)
+    ores = sf::st_intersects(pts, polygons) 
+    ores = purrr::map(ores, head, 1)
     ores = as.integer(ores)
     ores[which(is.na(ores))] = 0
     return(ores)
@@ -14,7 +14,7 @@ writeMM <- function(X, fname) {
     nrow <- X@Dim[1]
     ncol <- X@Dim[2]    
     writeLines(paste0(c('%%MatrixMarket matrix coordinate real general\n', nrow, ' ', ncol, ' ', nelem), collapse = ''), fname)    
-    fwrite(data.table(X@i+1, rep(seq_len(ncol), times = diff(X@p)), X@x), fname, append = TRUE, sep = ' ')        
+    data.table::fwrite(data.table(X@i+1, rep(seq_len(ncol), times = diff(X@p)), X@x), fname, append = TRUE, sep = ' ')        
 }
 
 readMM <- function(fname, max_header_size = 100, nthreads = NULL) {
@@ -40,13 +40,13 @@ readMM <- function(fname, max_header_size = 100, nthreads = NULL) {
     }
     ## Then, read the file and make a matrix 
     with(
-        fread(fname, skip = nlines_skip, nThread = nthreads),
+        data.table::fread(fname, skip = nlines_skip, nThread = nthreads),
         Matrix::sparseMatrix(i = V1, j = V2, x = V3, dims = c(nrow, ncol))
     )
 }
 
 st_rectangle <- function(xmin, xmax, ymin, ymax) {
-    res <- st_polygon(list(
+    res <- sf::st_polygon(list(
         rbind(
             c(xmin, ymin),
             c(xmax, ymin), 

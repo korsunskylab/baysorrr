@@ -25,11 +25,11 @@ try_cmd = function(cmd, attempts_left, verbose=FALSE) {
 
 baysor.collect_tx = function(dir) {
     tx <- list.files(dir, pattern = "segmentation.csv$", recursive = TRUE, full.names = TRUE) %>% 
-        map(fread) %>% data.table::rbindlist(idcol = "tile")
+        purrr::map(data.table::fread) %>% data.table::rbindlist(idcol = "tile")
     if (is(tx$cell, "character")) {
         ## Assumes cell is of format "{name}-{number}"
-        cell_id = stringr::str_split(tx$cell, '-') %>% map(2)
-        cell_id[map_lgl(cell_id, is.null)] = 0
+        cell_id = stringr::str_split(tx$cell, '-') %>% purrr::map(2)
+        cell_id[purrr::map_lgl(cell_id, is.null)] = 0
         tx$cell = as.integer(cell_id)
         
         ## OLD VERSION: assign random integers
@@ -57,7 +57,7 @@ baysor.collect_tx = function(dir) {
     
 baysor.read_shapes = function(dir) {
     fnames = list.files(dir, pattern='segmentation_polygons.json', recursive=TRUE, full.names=TRUE)
-    json_list = fnames %>% map(jsonlite::read_json) %>% map('geometries')
+    json_list = fnames %>% purrr::map(jsonlite::read_json) %>% purrr::map('geometries')
     shapes = purrr::map(json_list, function(json) {
         cell_shapes = json %>% 
             purrr::map('coordinates') %>%purrr::map(1) %>% 
@@ -65,13 +65,13 @@ baysor.read_shapes = function(dir) {
             purrr::map(function(cell) {
                 if (nrow(cell) < 3) {
                     ## some Baysor cells get returned as lines? 
-                    st_polygon(list())
+                    sf::st_polygon(list())
                 } else {
-                    st_polygon(list(rbind(cell, tail(cell, 1))))  
+                    sf::st_polygon(list(rbind(cell, tail(cell, 1))))  
                 }
             })
         cell_ids = purrr::map_int(json, 'cell') 
-        st_sfc(cell_shapes[order(cell_ids)])
+        sf::st_sfc(cell_shapes[order(cell_ids)])
     }) %>% 
         purrr::reduce(c)    
 }
@@ -86,9 +86,9 @@ mean_hex = function(str) {
 }
 
 baysor.collect_cells = function(dir, no_ncv_estimation) {
-    cells = st_sf(shape=baysor.read_shapes(dir))
-    cells = cbind(cells, st_coordinates(st_centroid(cells$shape))) %>% dplyr::rename(x = X, y = Y)
-    cells$area <- st_area(cells$shape)
+    cells = sf::st_sf(shape=baysor.read_shapes(dir))
+    cells = cbind(cells, sf::st_coordinates(sf::st_centroid(cells$shape))) %>% dplyr::rename(x = X, y = Y)
+    cells$area <- sf::st_area(cells$shape)
 
     if (no_ncv_estimation) {
         cell_summary = tx[
@@ -126,13 +126,13 @@ baysor.finish = function(remove_temp_files) {
             unlink(fname, recursive = TRUE)
         }
     }
-    fwrite(tx, file.path(output_dir, "transcripts.csv"))
+    data.table::fwrite(tx, file.path(output_dir, "transcripts.csv"))
     writeLines(rownames(counts), file.path(output_dir, "genes.tsv"))
     spatula::writeMM(counts, file.path(output_dir, "counts.mtx"))
     suppressWarnings({
         sfarrow::st_write_parquet(dplyr::select(cells, shape), file.path(output_dir, "shapes.parquet"))
     })
-    fwrite(st_drop_geometry(cells), file.path(output_dir, "cells.csv"), sep = ",")
+    data.table::fwrite(sf::st_drop_geometry(cells), file.path(output_dir, "cells.csv"), sep = ",")
 }
 
 #' @export 

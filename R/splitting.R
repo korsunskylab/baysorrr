@@ -17,13 +17,13 @@ split_tx_files <- function(output_dir, max_tx_per_grid) {
 
 
     err_status <- grid %>%
-        map('tx') %>% 
-        imap(function(tx_grid, grid_id) {
+        purrr::map('tx') %>% 
+        purrr::imap(function(tx_grid, grid_id) {
             dirname <- file.path(output_dir, paste0('g', grid_id))        
             if (!dir.exists(dirname)) dir.create(dirname)
             fname <- as.character(glue('{dirname}/tx_baysor.csv'))
-            fwrite(tx_grid, fname, sep = ',') 
-        })    
+            data.table::fwrite(tx_grid, fname, sep = ',') 
+        }) 
     return(length(grid))
 }
 
@@ -40,7 +40,7 @@ split_grid <- function(grid_point) {
     )
     
     ## Make four new grid points 
-    res <- map(bboxes_new, function(bbox_test) {
+    res <- purrr::map(bboxes_new, function(bbox_test) {
         res <- list(
             tx = dplyr::filter(grid_point$tx, between(x, bbox_test[1], bbox_test[2]) & between(y, bbox_test[3], bbox_test[4])), 
             # tx = grid_point$tx[between(x, bbox_test[1], bbox_test[2]) & between(y, bbox_test[3], bbox_test[4])], 
@@ -68,21 +68,21 @@ split_tx <- function(tx, max_tx, max_voxels) {
     .i <- 0
     while (TRUE) {
         .i <- .i + 1
-        grids_split <- which(map_int(grid, 'n') > max_tx)
+        grids_split <- which(purrr::map_int(grid, 'n') > max_tx)
         if (length(grid) >= max_voxels) {
             break
         } else if (length(grids_split) > 0) {
             i <- grids_split[1]
             grid <- append(grid, split_grid(grid[[i]]))
             grid[[i]] <- NULL
-            grids_split <- which(map_int(grid, 'n') > max_tx)
+            grids_split <- which(purrr::map_int(grid, 'n') > max_tx)
         } else {
             break
         }
     }
     ## For QC purposes, compute the transcript density of each region 
     for (i in seq_len(length(grid))) {
-        grid[[i]]$density <- grid[[i]]$n / st_area(grid[[i]]$'bbox_geom')
+        grid[[i]]$density <- grid[[i]]$n / sf::st_area(grid[[i]]$'bbox_geom')
     }    
     return(grid)
 }
