@@ -128,7 +128,7 @@ baysor.finish = function(remove_temp_files) {
     }
     data.table::fwrite(tx, file.path(output_dir, "transcripts.csv"))
     writeLines(rownames(counts), file.path(output_dir, "genes.tsv"))
-    spatula::writeMM(counts, file.path(output_dir, "counts.mtx"))
+    writeMM(counts, file.path(output_dir, "counts.mtx"))
     suppressWarnings({
         sfarrow::st_write_parquet(dplyr::select(cells, shape), file.path(output_dir, "shapes.parquet"))
     })
