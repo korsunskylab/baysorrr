@@ -8,6 +8,7 @@ st_assign_pts_to_polygon = function(pts, polygons) {
 }
 
 
+#' @export
 writeMM <- function(X, fname) {
     stopifnot(is(X, 'dgCMatrix'))
     nelem <- length(X@i)
@@ -17,6 +18,7 @@ writeMM <- function(X, fname) {
     data.table::fwrite(data.table(X@i+1, rep(seq_len(ncol), times = diff(X@p)), X@x), fname, append = TRUE, sep = ' ')        
 }
 
+#' @export
 readMM <- function(fname, max_header_size = 100, nthreads = NULL) {
     ## First, figure out how many lines to skip
     ## Assumes that MM format has comments that start with %
@@ -45,6 +47,7 @@ readMM <- function(fname, max_header_size = 100, nthreads = NULL) {
     )
 }
 
+#' @export
 st_rectangle <- function(xmin, xmax, ymin, ymax) {
     res <- sf::st_polygon(list(
         rbind(
