@@ -89,7 +89,7 @@ baysor.collect_cells = function(dir, no_ncv_estimation) {
     cells = sf::st_sf(shape=baysor.read_shapes(dir))
     cells = cbind(cells, sf::st_coordinates(sf::st_centroid(cells$shape))) %>% dplyr::rename(x = X, y = Y)
     cells$area <- sf::st_area(cells$shape)
-
+    if (!'cells' %in% colnames(tx)) tx$cluster = 1
     if (no_ncv_estimation) {
         cell_summary = tx[
             cell != 0, 
