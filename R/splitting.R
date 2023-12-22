@@ -21,7 +21,7 @@ split_tx_files <- function(output_dir, max_tx_per_grid) {
         purrr::imap(function(tx_grid, grid_id) {
             dirname <- file.path(output_dir, paste0('g', grid_id))        
             if (!dir.exists(dirname)) dir.create(dirname)
-            fname <- as.character(glue('{dirname}/tx_baysor.csv'))
+            fname <- as.character(glue::glue('{dirname}/tx_baysor.csv'))
             data.table::fwrite(tx_grid, fname, sep = ',') 
         }) 
     return(length(grid))
